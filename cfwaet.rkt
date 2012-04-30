@@ -1,11 +1,3 @@
-;*****************************************************
-; NAME:    Greg Matthies
-; KUID:    2486949
-; DATE:    03/08/2012
-; CLASS:   EECS 662
-; PROJECT: MiniProject2 Exercise 1 - CFAE
-;*****************************************************
-
 #lang plai
 
 ; Deferred Substitution Definition
@@ -158,7 +150,7 @@
                                    (equal lt numT))
                              numT
                              (error 'typeof "divw types are not valid!" ) ) ) )
-         ( if0 (c t e) 
+         ( if0w (c t e) 
                (if (eq (typeof c con) numT)
                    ( let ((tt (typeof t con))
                           (te (typeof e con)))
