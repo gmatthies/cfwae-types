@@ -159,9 +159,10 @@
                    ( error 'typeof "condition type is not a number!" )) )
          ; Need to make an aCon using the type of the named-expr and binding it to name
          ; This new context is passed into typeof when we do typeof body
-         ( with (name named-expr body) ( typeof body (aCon name (typeof named-expr) con) ) )
+         ( withw (name named-expr body) ( typeof body (aCon name (typeof named-expr) con) ) )
          ; Fun is of the form {fun {id type} {body}}, so we use the type of id as the domain
          ; and we recurse on the type of body for the range and build a fun type to return
+         ( funw (param paramT body) (funT paramT (typeof body (aCon param paramT con))) )
                            
 
 ; Parses an expression and returns a CFWAE expression
