@@ -111,7 +111,7 @@
    ( mtCon )
    ( aCon (x symbol?)
           (t CFWAETY?)
-          con ) )
+          (con con? ) ) )
    
 ; Create a small prelude for the CFWAE language
 ( define prelude
@@ -125,37 +125,43 @@
 ( define typeof 
    ( lambda (expr con)
       ( type-case CFWAE expr
-         ( num (n) numT )
+         ( numw (n) numT )
+         ;type of id - need to look up what is bound to id in context, that is the type of id
          ( addw (l r) (let (( lt (typeof l con))
                             ( rt (typeof r con)))
-                        ( if ( and (equal lt rt)
-                                   (equal lt numT))
+                        ( if ( and (equal? lt rt)
+                                   (equal? lt numT))
                              numT
                              (error 'typeof "addw types are not valid!" ) ) ) )
          ( subw (l r) (let (( lt (typeof l con))
                             ( rt (typeof r con)))
-                        ( if ( and (equal lt rt)
-                                   (equal lt numT))
+                        ( if ( and (equal? lt rt)
+                                   (equal? lt numT))
                              numT
                              (error 'typeof "subw types are not valid!" ) ) ) )
          ( mulw (l r) (let (( lt (typeof l con))
                             ( rt (typeof r con)))
-                        ( if ( and (equal lt rt)
-                                   (equal lt numT))
+                        ( if ( and (equal? lt rt)
+                                   (equal? lt numT))
                              numT
                              (error 'typeof "mulw types are not valid!" ) ) ) )
          ( divw (l r) (let (( lt (typeof l con))
                             ( rt (typeof r con)))
-                        ( if ( and (equal lt rt)
-                                   (equal lt numT))
+                        ( if ( and (equal? lt rt)
+                                   (equal? lt numT))
                              numT
                              (error 'typeof "divw types are not valid!" ) ) ) )
          ( if0w (c t e) 
-               (if (eq (typeof c con) numT)
+               (if (eq? (typeof c con) numT)
                    ( let ((tt (typeof t con))
                           (te (typeof e con)))
-                      (if (equal tt te) tt (error 'typeof "if0 true and else branch types are not the same!")) )
+                      (if (equal? tt te) tt (error 'typeof "if0 true and else branch types are not the same!")) )
                    ( error 'typeof "condition type is not a number!" )) )
+         ; Need to make an aCon using the type of the named-expr and binding it to name
+         ; This new context is passed into typeof when we do typeof body
+         ( with (name named-expr body) ( typeof body (aCon name (typeof named-expr) con) ) )
+         ; Fun is of the form {fun {id type} {body}}, so we use the type of id as the domain
+         ; and we recurse on the type of body for the range and build a fun type to return
                            
 
 ; Parses an expression and returns a CFWAE expression
