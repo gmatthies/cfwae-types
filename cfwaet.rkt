@@ -86,6 +86,11 @@
 ( define eval-cfae
    ( lambda (expr)
       ( interp-cfae (parse-cfae expr) (emptySub) ) ) )
+
+( define-type CFWAETY
+   ( numT )
+   ( funT (dom CFWAETY?)
+          (ran CFWAETY?) ) )
    
 ; CFWAE Abstract Syntax Tree constructs
 ( define-type CFWAE
@@ -97,21 +102,25 @@
    ( divw  (lhs CFWAE?) (rhs CFWAE?) )   
    ( withw (name symbol?) (named-expr CFWAE?) (body CFWAE?) )
    ( condw (branches list?) (base CFWAE?) )
-   ( if0w  (cond CFWAE?) (tbr CFWAE?) (fbr CFWAE?) )
+   ( if0w  (thecond CFWAE?) (tbr CFWAE?) (fbr CFWAE?) )
    ( funw  (param symbol?) (paramT CFWAETY?) (fbody CFWAE?) )
    ( appw  (fun-expr CFWAE?) (arg CFWAE?) ) )
 
-( define-type CFWAETY
-   ( numT )
-   ( funT (dom CFWAETY?)
-          (ran CFWAETY?) ) )
-
 ; Context for types
-( define-type con
+( define-type Con
    ( mtCon )
    ( aCon (x symbol?)
           (t CFWAETY?)
-          (con con? ) ) )
+          (con Con? ) ) )
+
+( define conlookup 
+   ( lambda ( id con )
+      ( type-case Con con
+         ( mtCon () (error 'env-lookup "no binding found for identifier") )
+         ( aCon (bound-id bound-type rest-con)
+                (if (symbol=? id bound-id)
+                    bound-type
+                    (conlookup id rest-con)) ) ) ) )
    
 ; Create a small prelude for the CFWAE language
 ( define prelude
@@ -126,7 +135,8 @@
    ( lambda (expr con)
       ( type-case CFWAE expr
          ( numw (n) numT )
-         ;type of id - need to look up what is bound to id in context, that is the type of id
+         ; Lookup type of id in context
+         ( idw  (id) (conlookup id con) )
          ( addw (l r) (let (( lt (typeof l con))
                             ( rt (typeof r con)))
                         ( if ( and (equal? lt rt)
@@ -151,19 +161,23 @@
                                    (equal? lt numT))
                              numT
                              (error 'typeof "divw types are not valid!" ) ) ) )
+         ; Need to make an aCon using the type of the named-expr and binding it to name
+         ; This new context is passed into typeof when we do typeof body
+         ( withw (name named-expr body) ( typeof body (aCon name (typeof named-expr con) con) ) )
+         ; We need to go through all of the branches and make sure the types of the expressions
+         ; and the default case are all the same, if not, then we throw an error. (Not sure how to do that...)
+         ( condw (branches body) numT )
          ( if0w (c t e) 
                (if (eq? (typeof c con) numT)
                    ( let ((tt (typeof t con))
                           (te (typeof e con)))
                       (if (equal? tt te) tt (error 'typeof "if0 true and else branch types are not the same!")) )
                    ( error 'typeof "condition type is not a number!" )) )
-         ; Need to make an aCon using the type of the named-expr and binding it to name
-         ; This new context is passed into typeof when we do typeof body
-         ( withw (name named-expr body) ( typeof body (aCon name (typeof named-expr) con) ) )
          ; Fun is of the form {fun {id type} {body}}, so we use the type of id as the domain
          ; and we recurse on the type of body for the range and build a fun type to return
          ( funw (param paramT body) (funT paramT (typeof body (aCon param paramT con))) )
-                           
+         ; Type of the app is just the type of the range of the function
+         ( appw (thefun theparam) numT ) ) ) )                  
 
 ; Parses an expression and returns a CFWAE expression
 ( define parse-cfwae
@@ -214,7 +228,7 @@
          ( withw (name named-expr body) (app (fun name (elab-cfwae body)) (elab-cfwae named-expr)) )
          ( condw (brchs base) (elab-cond brchs (elab-cfwae base)) )
          ( if0w  (c t e) (if0 (elab-cfwae c) (elab-cfwae t) (elab-cfwae e)) )
-         ( funw  (param body) (fun param (elab-cfwae body)) )
+         ( funw  (param paramT body) (fun param (elab-cfwae body)) )
          ( appw  (fun param) (app (elab-cfwae fun) (elab-cfwae param)) ) ) ) )
 
 ; Helper function to handle elab-cfwaeorating cond statements
