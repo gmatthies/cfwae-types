@@ -142,7 +142,9 @@
                         ( if ( and (equal? lt rt)
                                    (equal? lt numT))
                              numT
-                             (error 'typeof "addw types are not valid!" ) ) ) )
+                             ;(error 'typeof "addw types are not valid!" ) ) ) )
+                             rt ) ) ) 
+         
          ( subw (l r) (let (( lt (typeof l con))
                             ( rt (typeof r con)))
                         ( if ( and (equal? lt rt)
@@ -163,7 +165,7 @@
                              (error 'typeof "divw types are not valid!" ) ) ) )
          ; Need to make an aCon using the type of the named-expr and binding it to name
          ; This new context is passed into typeof when we do typeof body
-         ( withw (name named-expr body) ( typeof body (aCon name (typeof named-expr con) con) ) )
+         ( withw (name named-expr body) ( typeof body (aCon name ((typeof named-expr (con))) (con)) ) )
          ; We need to go through all of the branches and make sure the types of the expressions
          ; and the default case are all the same, if not, then we throw an error. (Not sure how to do that...)
          ( condw (branches body) numT )
@@ -175,9 +177,9 @@
                    ( error 'typeof "condition type is not a number!" )) )
          ; Fun is of the form {fun {id type} {body}}, so we use the type of id as the domain
          ; and we recurse on the type of body for the range and build a fun type to return
-         ( funw (param paramT body) (funT paramT (typeof body (aCon param paramT con))) )
+         ( funw (param paramT body) (funT paramT (typeof body (aCon param paramT (con))) ) )
          ; Type of the app is just the type of the range of the function
-         ( appw (thefun theparam) numT ) ) ) )                  
+         ( appw (thefun theparam) numT ) ) ) )                 
 
 ; Parses an expression and returns a CFWAE expression
 ( define parse-cfwae
@@ -194,7 +196,7 @@
              ( (if0) (if0w (parse-cfwae (second expr))
                            (parse-cfwae (third  expr))
                            (parse-cfwae (fourth expr))) )
-             ( (fun) (funw (second expr) (parse-cfwae (third expr))) )
+             ( (fun) (funw (first (second expr)) (numT) (parse-cfwae (third expr))) )
              ( (with) (withw (first (second expr))
                              (parse-cfwae (second (second expr)))
                              (parse-cfwae (third expr))) )
@@ -231,7 +233,7 @@
          ( funw  (param paramT body) (fun param (elab-cfwae body)) )
          ( appw  (fun param) (app (elab-cfwae fun) (elab-cfwae param)) ) ) ) )
 
-; Helper function to handle elab-cfwaeorating cond statements
+; Helper function to handle elaborating cond statements
 ( define elab-cond
    ( lambda (branches base)
       (cond ((empty? branches) base)
@@ -243,5 +245,7 @@
 ; Calls the CFAE interp function
 ( define eval-cfwae
    ( lambda (expr)
-     ( interp-cfae (elab-cfwae (parse-cfwae expr)) prelude ) ) ) 
+      ( if (eq? (typeof (parse-cfwae expr) mtCon) numT)
+           ( interp-cfae (elab-cfwae (parse-cfwae expr)) prelude ) 
+           ( error 'eval-cfwae "error type checking" ) ) ) )
   
