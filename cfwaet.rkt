@@ -113,10 +113,11 @@
           (t CFWAETY?)
           (con Con? ) ) )
 
+; Looks up the type associated with a particular id
 ( define conlookup 
    ( lambda ( id con )
       ( type-case Con con
-         ( mtCon () (error 'env-lookup "no binding found for identifier") )
+         ( mtCon () (error 'conlookup "no binding found for identifier") )
          ( aCon (bound-id bound-type rest-con)
                 (if (symbol=? id bound-id)
                     bound-type
@@ -134,53 +135,53 @@
 ( define typeof 
    ( lambda (expr con)
       ( type-case CFWAE expr
-         ( numw (n) numT )
+         ( numw (n) (numT) )
          ; Lookup type of id in context
          ( idw  (id) (conlookup id con) )
          ( addw (l r) (let (( lt (typeof l con))
                             ( rt (typeof r con)))
                         ( if ( and (equal? lt rt)
-                                   (equal? lt numT))
-                             numT
-                             ;(error 'typeof "addw types are not valid!" ) ) ) )
-                             rt ) ) ) 
+                                   (equal? lt (numT)))
+                             (numT)
+                             (error 'typeof "addw types are not valid!" ) ) ) )
+                             ;rt ) ) ) 
          
          ( subw (l r) (let (( lt (typeof l con))
                             ( rt (typeof r con)))
                         ( if ( and (equal? lt rt)
-                                   (equal? lt numT))
-                             numT
+                                   (equal? lt (numT)))
+                             (numT)
                              (error 'typeof "subw types are not valid!" ) ) ) )
          ( mulw (l r) (let (( lt (typeof l con))
                             ( rt (typeof r con)))
                         ( if ( and (equal? lt rt)
-                                   (equal? lt numT))
-                             numT
+                                   (equal? lt (numT)))
+                             (numT)
                              (error 'typeof "mulw types are not valid!" ) ) ) )
          ( divw (l r) (let (( lt (typeof l con))
                             ( rt (typeof r con)))
                         ( if ( and (equal? lt rt)
-                                   (equal? lt numT))
-                             numT
+                                   (equal? lt (numT)))
+                             (numT)
                              (error 'typeof "divw types are not valid!" ) ) ) )
          ; Need to make an aCon using the type of the named-expr and binding it to name
          ; This new context is passed into typeof when we do typeof body
-         ( withw (name named-expr body) ( typeof body (aCon name ((typeof named-expr (con))) (con)) ) )
+         ( withw (name named-expr body) ( typeof body (aCon name (typeof named-expr con) con) ) )
          ; We need to go through all of the branches and make sure the types of the expressions
          ; and the default case are all the same, if not, then we throw an error. (Not sure how to do that...)
-         ( condw (branches body) numT )
+         ( condw (branches body) (numT) )
          ( if0w (c t e) 
-               (if (eq? (typeof c con) numT)
+               (if (equal? (typeof c con) (numT))
                    ( let ((tt (typeof t con))
                           (te (typeof e con)))
                       (if (equal? tt te) tt (error 'typeof "if0 true and else branch types are not the same!")) )
                    ( error 'typeof "condition type is not a number!" )) )
          ; Fun is of the form {fun {id type} {body}}, so we use the type of id as the domain
          ; and we recurse on the type of body for the range and build a fun type to return
-         ( funw (param paramT body) (funT paramT (typeof body (aCon param paramT (con))) ) )
+         ( funw (param paramT body) (funT paramT (typeof body (aCon param paramT con)) ) )
          ; Type of the app is just the type of the range of the function
-         ( appw (thefun theparam) numT ) ) ) )                 
-
+         ;( appw (thefun theparam) (funT-ran (typeof thefun (aCon (funw-param thefun) (typeof theparam (mtCon)) con))) ) ) ) )                 
+         ( appw (thefun theparam) (numT) ) ) ) )
 ; Parses an expression and returns a CFWAE expression
 ( define parse-cfwae
    ( lambda (expr)
@@ -245,7 +246,8 @@
 ; Calls the CFAE interp function
 ( define eval-cfwae
    ( lambda (expr)
-      ( if (eq? (typeof (parse-cfwae expr) mtCon) numT)
+      ( if (equal? (typeof (parse-cfwae expr) (mtCon)) (numT))
            ( interp-cfae (elab-cfwae (parse-cfwae expr)) prelude ) 
-           ( error 'eval-cfwae "error type checking" ) ) ) )
+           ;( error 'eval-cfwae "error type checking" ) ) ) )
+           (typeof (parse-cfwae expr) mtCon) ) ) ) 
   
